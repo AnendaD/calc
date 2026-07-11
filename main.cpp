@@ -4,15 +4,16 @@
 #include <vector>
 
 enum class TokenType : uint32_t {
-  Plus = 1 << 0,
-  Minus = 1 << 1,
-  Star = 1 << 2,
-  Slash = 1 << 3,
+  Add = 1 << 0,
+  Sub = 1 << 1,
+  Mul = 1 << 2,
+  Div = 1 << 3,
   LeftBrace = 1 << 4,
   RightBrace = 1 << 5,
-  Number = 1 << 6,
+  Number = 2 << 6,
 };
-
+const uint32_t OperationMask = 0b1111;
+const std::string InvalidInputErr = "Invalid input";
 struct Token {
   TokenType Type;
   std::string Literal;
@@ -42,28 +43,28 @@ public:
   std::vector<Token> Tokenize(std::string input) {
     std::vector<Token> res;
     if (input[0] != '-') {
-      res.push_back({TokenType::Plus, "+"});
+      res.push_back({TokenType::Add, "+"});
     }
     while (this->Position < input.length()) {
       Token token;
       char ch = input[this->Position];
       if (ch == '+') {
-        token.Type = TokenType::Plus;
+        token.Type = TokenType::Add;
         token.Literal = "+";
         res.push_back(token);
         this->Position++;
       } else if (ch == '-') {
-        token.Type = TokenType::Minus;
+        token.Type = TokenType::Sub;
         token.Literal = "-";
         res.push_back(token);
         this->Position++;
       } else if (ch == '*') {
-        token.Type = TokenType::Star;
+        token.Type = TokenType::Mul;
         token.Literal = "*";
         res.push_back(token);
         this->Position++;
       } else if (ch == '/') {
-        token.Type = TokenType::Slash;
+        token.Type = TokenType::Div;
         token.Literal = "/";
         res.push_back(token);
         this->Position++;
@@ -73,7 +74,7 @@ public:
         res.push_back(token);
         this->Position++;
         if (input[this->Position] != '-') {
-          res.push_back({TokenType::Plus, "+"});
+          res.push_back({TokenType::Add, "+"});
         }
       } else if (ch == ')') {
         token.Type = TokenType::RightBrace;
@@ -87,7 +88,7 @@ public:
         token.Literal = this->readNumber(input);
         res.push_back(token);
       } else {
-        std::cout << "An error ocured while parsing input";
+        std::cout << InvalidInputErr;
         std::abort();
       }
     }
@@ -103,7 +104,7 @@ private:
       if (isDot(input[this->Position])) {
         dotCount++;
         if (dotCount > 1) {
-          std::cout << "Invalid input";
+          std::cout << InvalidInputErr;
           std::abort();
         }
       }
@@ -117,7 +118,6 @@ private:
 struct Evaluator {
   int Position;
   std::vector<Token> &Tokenized;
-  static constexpr uint32_t OperationMask = 0b1111;
 
 public:
   double Evaluate() {
@@ -125,28 +125,27 @@ public:
     double cur = 0;
     while (this->Position < this->Tokenized.size() &&
            this->Tokenized[this->Position].Type != TokenType::RightBrace) {
-      if (this->Position == this->Tokenized.size() - 1 ||
-          !(uint32_t(this->Tokenized[this->Position].Type) & OperationMask)) {
-        std::cout << "Invalid input";
+      if (!(uint32_t(this->Tokenized[this->Position].Type) & OperationMask)) {
+        std::cout << InvalidInputErr;
         std::abort();
       }
       Token op = this->Tokenized[this->Position];
       this->Position++;
       double num = this->Compute();
-      if (op.Type == TokenType::Plus || op.Type == TokenType::Minus) {
+      if (op.Type == TokenType::Add || op.Type == TokenType::Sub) {
         result += cur;
         cur = 0.0;
-        if (op.Type == TokenType::Minus) {
+        if (op.Type == TokenType::Sub) {
           cur -= num;
         } else {
           cur += num;
         }
-      } else if (op.Type == TokenType::Star || op.Type == TokenType::Slash) {
-        if (op.Type == TokenType::Star) {
+      } else if (op.Type == TokenType::Mul || op.Type == TokenType::Div) {
+        if (op.Type == TokenType::Mul) {
           cur *= num;
         } else {
           if (num == 0.0) {
-            std::cout << "Invalid input: division dy zero!";
+            std::cout << InvalidInputErr << ": division by zero";
             std::abort();
           }
           cur /= num;
@@ -166,6 +165,10 @@ private:
       return std::stod(token.Literal);
     } else if (token.Type == TokenType::LeftBrace) {
       return this->Evaluate();
+    } else if ((uint32_t(token.Type) &
+                (uint32_t(TokenType::RightBrace) | OperationMask)) != 0) {
+      std::cout << InvalidInputErr;
+      std::abort();
     }
     std::cout << "Undefined token: " << token.Literal;
     std::abort();
@@ -182,12 +185,16 @@ int main() {
   }
   Tokenizer tokenizer = {0};
   std::vector<Token> tokenized = tokenizer.Tokenize(input);
-  for (auto el : tokenized) {
-    el.Inspect();
+  if (tokenized.size() % 2 != 0) {
+    std::cout << InvalidInputErr;
+    std::abort();
   }
-  std::cout << "\n";
+  // for (auto el : tokenized) {
+  //   el.Inspect();
+  // }
   Evaluator evaluator = {0, tokenized};
   double result = evaluator.Evaluate();
+  std::cout << "\n";
   std::cout << "Result: " << result;
   return 0;
 }

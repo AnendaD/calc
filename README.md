@@ -1,0 +1,1 @@
+This is simple CLI calculator, it can do pretty much a regular calculator can and it doesn't care about the amount of spaces between numbers, however you should always enclose negative numbers in parentheses, if it's in the middle of the expression.
